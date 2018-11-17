@@ -1,8 +1,10 @@
 """Coverage plugin for pytest."""
 import os
+import warnings
 
 import pytest
 import argparse
+
 from coverage.misc import CoverageException
 
 from . import embed
@@ -17,6 +19,7 @@ class CoverageError(Exception):
 def validate_report(arg):
     file_choices = ['annotate', 'html', 'xml']
     term_choices = ['term', 'term-missing']
+    term_modifier_choices = ['skip-covered']
     all_choices = term_choices + file_choices
     values = arg.split(":", 1)
     report_type = values[0]
@@ -26,6 +29,10 @@ def validate_report(arg):
 
     if len(values) == 1:
         return report_type, None
+
+    report_modifier = values[1]
+    if report_type in term_choices and report_modifier in term_modifier_choices:
+        return report_type, report_modifier
 
     if report_type not in file_choices:
         msg = 'output specifier not supported for: "{}" (choose from "{}")'.format(arg,
@@ -54,51 +61,43 @@ def pytest_addoption(parser):
                     metavar='type', type=validate_report,
                     help='type of report to generate: term, term-missing, '
                     'annotate, html, xml (multi-allowed). '
-                    'annotate, html and xml may be be followed by ":DEST" '
-                    'where DEST specifies the output location.')
+                    'term, term-missing may be followed by ":skip-covered". '
+                    'annotate, html and xml may be followed by ":DEST" '
+                    'where DEST specifies the output location. '
+                    'Use --cov-report= to not generate any output.')
     group.addoption('--cov-config', action='store', default='.coveragerc',
                     metavar='path',
                     help='config file for coverage, default: .coveragerc')
     group.addoption('--no-cov-on-fail', action='store_true', default=False,
                     help='do not report coverage if test run fails, '
                          'default: False')
-    group.addoption('--cov-fail-under', action='store', metavar='MIN', type='int',
+    group.addoption('--no-cov', action='store_true', default=False,
+                    help='Disable coverage report completely (useful for debuggers) '
+                         'default: False')
+    group.addoption('--cov-fail-under', action='store', metavar='MIN', type=int,
                     help='Fail if the total coverage is less than MIN.')
     group.addoption('--cov-append', action='store_true', default=False,
                     help='do not delete coverage but append to current, '
                          'default: False')
+    group.addoption('--cov-branch', action='store_true', default=None,
+                    help='Enable branch coverage.')
+
+
+def _prepare_cov_source(cov_source):
+    """
+    Prepare cov_source so that:
+
+     --cov --cov=foobar is equivalent to --cov (cov_source=None)
+     --cov=foo --cov=bar is equivalent to cov_source=['foo', 'bar']
+    """
+    return None if True in cov_source else [path for path in cov_source if path is not True]
 
 
 @pytest.mark.tryfirst
 def pytest_load_initial_conftests(early_config, parser, args):
-    ns = parser.parse_known_args(args)
-    ns.cov = bool(ns.cov_source)
-
-    if ns.cov_source == [True]:
-        ns.cov_source = None
-
-    if not ns.cov_report:
-        ns.cov_report = ['term']
-    elif len(ns.cov_report) == 1 and '' in ns.cov_report:
-        ns.cov_report = {}
-
-    if ns.cov:
-        plugin = CovPlugin(ns, early_config.pluginmanager)
+    if early_config.known_args_namespace.cov_source:
+        plugin = CovPlugin(early_config.known_args_namespace, early_config.pluginmanager)
         early_config.pluginmanager.register(plugin, '_cov')
-
-
-def pytest_configure(config):
-    """Activate coverage plugin if appropriate."""
-    if config.getvalue('cov_source'):
-        if not config.pluginmanager.hasplugin('_cov'):
-            if not config.option.cov_report:
-                config.option.cov_report = ['term']
-            if config.option.cov_source == [True]:
-                config.option.cov_source = None
-
-            plugin = CovPlugin(config.option, config.pluginmanager,
-                               start=False)
-            config.pluginmanager.register(plugin, '_cov')
 
 
 class CovPlugin(object):
@@ -125,11 +124,22 @@ class CovPlugin(object):
         self.cov_total = None
         self.failed = False
         self._started = False
+        self._disabled = False
         self.options = options
 
         is_dist = (getattr(options, 'numprocesses', False) or
                    getattr(options, 'distload', False) or
                    getattr(options, 'dist', 'no') != 'no')
+        if getattr(options, 'no_cov', False):
+            self._disabled = True
+            return
+
+        if not self.options.cov_report:
+            self.options.cov_report = ['term']
+        elif len(self.options.cov_report) == 1 and '' in self.options.cov_report:
+            self.options.cov_report = {}
+        self.options.cov_source = _prepare_cov_source(self.options.cov_source)
+
         if is_dist and start:
             self.start(engine.DistMaster)
         elif start:
@@ -138,6 +148,7 @@ class CovPlugin(object):
         # slave is started in pytest hook
 
     def start(self, controller_cls, config=None, nodeid=None):
+
         if config is None:
             # fake config option for engine
             class Config(object):
@@ -150,6 +161,7 @@ class CovPlugin(object):
             self.options.cov_report,
             self.options.cov_config,
             self.options.cov_append,
+            self.options.cov_branch,
             config,
             nodeid
         )
@@ -159,11 +171,19 @@ class CovPlugin(object):
         if self.options.cov_fail_under is None and hasattr(cov_config, 'fail_under'):
             self.options.cov_fail_under = cov_config.fail_under
 
+    def _is_slave(self, session):
+        return hasattr(session.config, 'slaveinput')
+
     def pytest_sessionstart(self, session):
         """At session start determine our implementation and delegate to it."""
+
+        if self.options.no_cov:
+            # Coverage can be disabled because it does not cooperate with debuggers well.
+            self._disabled = True
+            return
+
         self.pid = os.getpid()
-        is_slave = hasattr(session.config, 'slaveinput')
-        if is_slave:
+        if self._is_slave(session):
             nodeid = session.config.slaveinput.get('slaveid',
                                                    getattr(session, 'nodeid'))
             self.start(engine.DistSlave, session.config, nodeid)
@@ -199,25 +219,41 @@ class CovPlugin(object):
     def pytest_runtestloop(self, session):
         yield
 
+        if self._disabled:
+            return
+
         compat_session = compat.SessionWrapper(session)
 
         self.failed = bool(compat_session.testsfailed)
         if self.cov_controller is not None:
             self.cov_controller.finish()
 
-        if self._should_report():
+        if not self._is_slave(session) and self._should_report():
             try:
                 self.cov_total = self.cov_controller.summary(self.cov_report)
             except CoverageException as exc:
-                raise pytest.UsageError(
-                    'Failed to generate report: %s\n' % exc
-                )
+                message = 'Failed to generate report: %s\n' % exc
+                session.config.pluginmanager.getplugin("terminalreporter").write(
+                    'WARNING: %s\n' % message, red=True, bold=True)
+                if pytest.__version__ >= '3.8':
+                    warnings.warn(pytest.PytestWarning(message))
+                else:
+                    session.config.warn(code='COV-2', message=message)
+                self.cov_total = 0
             assert self.cov_total is not None, 'Test coverage should never be `None`'
             if self._failed_cov_total():
                 # make sure we get the EXIT_TESTSFAILED exit code
                 compat_session.testsfailed += 1
 
     def pytest_terminal_summary(self, terminalreporter):
+        if self._disabled:
+            message = 'Coverage disabled via --no-cov switch!'
+            terminalreporter.write('WARNING: %s\n' % message, red=True, bold=True)
+            if pytest.__version__ >= '3.8':
+                warnings.warn(pytest.PytestWarning(message))
+            else:
+                terminalreporter.config.warn(code='COV-1', message=message)
+            return
         if self.cov_controller is None:
             return
 
@@ -227,14 +263,22 @@ class CovPlugin(object):
 
         terminalreporter.write('\n' + self.cov_report.getvalue() + '\n')
 
-        if self._failed_cov_total():
-            markup = {'red': True, 'bold': True}
-            msg = (
-                'FAIL Required test coverage of %d%% not '
-                'reached. Total coverage: %.2f%%\n'
-                % (self.options.cov_fail_under, self.cov_total)
-            )
-            terminalreporter.write(msg, **markup)
+        if self.options.cov_fail_under is not None and self.options.cov_fail_under > 0:
+            if self.cov_total < self.options.cov_fail_under:
+                markup = {'red': True, 'bold': True}
+                message = (
+                    'FAIL Required test coverage of %d%% not '
+                    'reached. Total coverage: %.2f%%\n'
+                    % (self.options.cov_fail_under, self.cov_total)
+                )
+            else:
+                markup = {'green': True}
+                message = (
+                    'Required test coverage of %d%% '
+                    'reached. Total coverage: %.2f%%\n'
+                    % (self.options.cov_fail_under, self.cov_total)
+                )
+            terminalreporter.write(message, **markup)
 
     def pytest_runtest_setup(self, item):
         if os.getpid() != self.pid:
@@ -244,14 +288,28 @@ class CovPlugin(object):
 
     def pytest_runtest_teardown(self, item):
         if self.cov is not None:
-            embed.multiprocessing_finish(self.cov)
+            embed.cleanup(self.cov)
             self.cov = None
 
+    @compat.hookwrapper
+    def pytest_runtest_call(self, item):
+        if (item.get_marker('no_cover')
+                or 'no_cover' in getattr(item, 'fixturenames', ())):
+            self.cov_controller.pause()
+            yield
+            self.cov_controller.resume()
+        else:
+            yield
 
-def pytest_funcarg__cov(request):
-    """A pytest funcarg that provides access to the underlying coverage
-    object.
-    """
+
+@pytest.fixture
+def no_cover():
+    pass
+
+
+@pytest.fixture
+def cov(request):
+    """A pytest fixture to provide access to the underlying coverage object."""
 
     # Check with hasplugin to avoid getplugin exception in older pytest.
     if request.config.pluginmanager.hasplugin('_cov'):
@@ -259,3 +317,7 @@ def pytest_funcarg__cov(request):
         if plugin.cov_controller:
             return plugin.cov_controller.cov
     return None
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "no_cover: disable coverage for this test.")

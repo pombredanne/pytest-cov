@@ -4,14 +4,20 @@ Welcome to pytest-cov's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-   readme
-   installation
-   contributing
-   releasing
-   authors
-   changelog
+    readme
+    config
+    reporting
+    debuggers
+    xdist
+    mp
+    plugins
+    markers-fixtures
+    changelog
+    authors
+    releasing
+    contributing
 
 Indices and tables
 ==================

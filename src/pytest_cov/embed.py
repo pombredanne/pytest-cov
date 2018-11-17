@@ -14,17 +14,15 @@ that code coverage is being collected we activate coverage based on
 info passed via env vars.
 """
 import os
+import signal
+
+active_cov = None
 
 
-def multiprocessing_start(obj):
+def multiprocessing_start(_):
     cov = init()
     if cov:
-        multiprocessing.util.Finalize(None, multiprocessing_finish, args=(cov,), exitpriority=1000)
-
-
-def multiprocessing_finish(cov):
-    cov.stop()
-    cov.save()
+        multiprocessing.util.Finalize(None, cleanup, args=(cov,), exitpriority=1000)
 
 
 try:
@@ -38,25 +36,29 @@ else:
 def init():
     # Only continue if ancestor process has set everything needed in
     # the env.
+    global active_cov
 
     cov_source = os.environ.get('COV_CORE_SOURCE')
     cov_config = os.environ.get('COV_CORE_CONFIG')
     cov_datafile = os.environ.get('COV_CORE_DATAFILE')
+    cov_branch = True if os.environ.get('COV_CORE_BRANCH') == 'enabled' else None
+
     if cov_datafile:
         # Import what we need to activate coverage.
         import coverage
 
         # Determine all source roots.
-        if not cov_source:
+        if cov_source == os.pathsep:
             cov_source = None
         else:
             cov_source = cov_source.split(os.pathsep)
-        if not cov_config:
+        if cov_config == os.pathsep:
             cov_config = True
 
         # Activate coverage for this process.
-        cov = coverage.coverage(
+        cov = active_cov = coverage.Coverage(
             source=cov_source,
+            branch=cov_branch,
             data_suffix=True,
             config_file=cov_config,
             auto_data=True,
@@ -67,3 +69,29 @@ def init():
         cov._warn_no_data = False
         cov._warn_unimported_source = False
         return cov
+
+
+def _cleanup(cov):
+    if cov is not None:
+        cov.stop()
+        cov.save()
+
+
+def cleanup(cov=None):
+    global active_cov
+
+    _cleanup(cov)
+    if active_cov is not cov:
+        _cleanup(active_cov)
+    active_cov = None
+
+
+multiprocessing_finish = cleanup  # in case someone dared to use this internal
+
+
+def _sigterm_handler(*_):
+    cleanup()
+
+
+def cleanup_on_sigterm():
+    signal.signal(signal.SIGTERM, _sigterm_handler)

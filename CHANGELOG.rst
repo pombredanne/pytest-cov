@@ -1,7 +1,68 @@
 Changelog
 =========
 
-2.3.0 (tba)
+2.6.0 (2018-09-03)
+------------------
+
+* Dropped support for Python < 3.4, Pytest < 3.5 and Coverage < 4.4.
+* Fixed some documentation formatting. Contributed by Jean Jordaan and Julian.
+* Added an example with ``addopts`` in documentation. Contributed by Samuel Giffard in
+  `#195 <https://github.com/pytest-dev/pytest-cov/pull/195>`_.
+* Fixed ``TypeError: 'NoneType' object is not iterable`` in certain xdist configurations. Contributed by Jeremy Bowman in
+  `#213 <https://github.com/pytest-dev/pytest-cov/pull/213>`_.
+* Added a ``no_cover`` marker and fixture. Fixes
+  `#78 <https://github.com/pytest-dev/pytest-cov/issues/78>`_.
+* Fixed broken ``no_cover`` check when running doctests. Contributed by Terence Honles in
+  `#200 <https://github.com/pytest-dev/pytest-cov/pull/200>`_.
+* Fixed various issues with path normalization in reports (when combining coverage data from parallel mode). Fixes
+  `#130 <https://github.com/pytest-dev/pytest-cov/issues/161>`_.
+  Contributed by Ryan Hiebert & Ionel Cristian Mărieș in
+  `#178 <https://github.com/pytest-dev/pytest-cov/pull/178>`_.
+* Report generation failures don't raise exceptions anymore. A warning will be logged instead. Fixes
+  `#161 <https://github.com/pytest-dev/pytest-cov/issues/161>`_.
+* Fixed multiprocessing issue on Windows (empty env vars are not passed). Fixes
+  `#165 <https://github.com/pytest-dev/pytest-cov/issues/165>`_.
+
+2.5.1 (2017-05-11)
+------------------
+
+* Fixed xdist breakage (regression in ``2.5.0``).
+  Fixes `#157 <https://github.com/pytest-dev/pytest-cov/issues/157>`_.
+* Allow setting custom ``data_file`` name in ``.coveragerc``.
+  Fixes `#145 <https://github.com/pytest-dev/pytest-cov/issues/145>`_.
+  Contributed by Jannis Leidel & Ionel Cristian Mărieș in
+  `#156 <https://github.com/pytest-dev/pytest-cov/pull/156>`_.
+
+2.5.0 (2017-05-09)
+------------------
+
+* Always show a summary when ``--cov-fail-under`` is used. Contributed by Francis Niu in `PR#141
+  <https://github.com/pytest-dev/pytest-cov/pull/141>`_.
+* Added ``--cov-branch`` option. Fixes `#85 <https://github.com/pytest-dev/pytest-cov/issues/85>`_.
+* Improve exception handling in subprocess setup. Fixes `#144 <https://github.com/pytest-dev/pytest-cov/issues/144>`_.
+* Fixed handling when ``--cov`` is used multiple times. Fixes `#151 <https://github.com/pytest-dev/pytest-cov/issues/151>`_.
+
+2.4.0 (2016-10-10)
+------------------
+
+* Added a "disarm" option: ``--no-cov``. It will disable coverage measurements. Contributed by Zoltan Kozma in
+  `PR#135 <https://github.com/pytest-dev/pytest-cov/pull/135>`_.
+
+  **WARNING: Do not put this in your configuration files, it's meant to be an one-off for situations where you want to
+  disable coverage from command line.**
+* Fixed broken exception handling on ``.pth`` file. See `#136 <https://github.com/pytest-dev/pytest-cov/issues/136>`_.
+
+2.3.1 (2016-08-07)
+------------------
+
+* Fixed regression causing spurious errors when xdist was used. See `#124
+  <https://github.com/pytest-dev/pytest-cov/issues/124>`_.
+* Fixed DeprecationWarning about incorrect `addoption` use. Contributed by Florian Bruhin in `PR#127
+  <https://github.com/pytest-dev/pytest-cov/pull/127>`_.
+* Fixed deprecated use of funcarg fixture API. Contributed by Daniel Hahler in `PR#125
+  <https://github.com/pytest-dev/pytest-cov/pull/125>`_.
+
+2.3.0 (2016-07-05)
 ------------------
 
 * Add support for specifying output location for html, xml, and annotate report.
@@ -12,7 +73,8 @@ Changelog
   Contributed by David Szotten in `PR#116 <https://github.com/pytest-dev/pytest-cov/pull/116>`_.
 * Fixed bug occurred when bare ``--cov`` parameter was used with xdist.
   Contributed by Michael Elovskikh in `PR#120 <https://github.com/pytest-dev/pytest-cov/pull/120>`_.
-
+* Add support for ``skip_covered`` and added ``--cov-report=term-skip-covered`` command
+  line options. Contributed by Saurabh Kumar in `PR#115 <https://github.com/pytest-dev/pytest-cov/pull/115>`_.
 
 2.2.1 (2016-01-30)
 ------------------

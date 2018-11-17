@@ -1,67 +1,135 @@
 language: python
-python: '3.5'
 sudo: false
+cache: pip
 env:
   global:
     - LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so
     - SEGFAULT_SIGNALS=all
   matrix:
     - TOXENV=check
-
-    - TOXENV=py26-27-37
-    - TOXENV=py26-27-40
-    - TOXENV=py26-27-41
-    - TOXENV=py26-28-37
-    - TOXENV=py26-28-40
-    - TOXENV=py26-28-41
-    - TOXENV=py26-29-37
-    - TOXENV=py26-29-40
-    - TOXENV=py26-29-41
-    - TOXENV=py27-27-37
-    - TOXENV=py27-27-40
-    - TOXENV=py27-27-41
-    - TOXENV=py27-28-37
-    - TOXENV=py27-28-40
-    - TOXENV=py27-28-41
-    - TOXENV=py27-29-37
-    - TOXENV=py27-29-40
-    - TOXENV=py27-29-41
-    - TOXENV=py33-27-37
-    - TOXENV=py33-27-40
-    - TOXENV=py33-27-41
-    - TOXENV=py33-28-37
-    - TOXENV=py33-28-40
-    - TOXENV=py33-28-41
-    - TOXENV=py33-29-37
-    - TOXENV=py33-29-40
-    - TOXENV=py33-29-41
-    - TOXENV=py34-27-37
-    - TOXENV=py34-27-40
-    - TOXENV=py34-27-41
-    - TOXENV=py34-28-37
-    - TOXENV=py34-28-40
-    - TOXENV=py34-28-41
-    - TOXENV=py34-29-37
-    - TOXENV=py34-29-40
-    - TOXENV=py34-29-41
-    - TOXENV=py35-27-37
-    - TOXENV=py35-27-40
-    - TOXENV=py35-27-41
-    - TOXENV=py35-28-37
-    - TOXENV=py35-28-40
-    - TOXENV=py35-28-41
-    - TOXENV=py35-29-37
-    - TOXENV=py35-29-40
-    - TOXENV=py35-29-41
-    - TOXENV=pypy-27-37
-    - TOXENV=pypy-27-40
-    - TOXENV=pypy-27-41
-    - TOXENV=pypy-28-37
-    - TOXENV=pypy-28-40
-    - TOXENV=pypy-28-41
-    - TOXENV=pypy-29-37
-    - TOXENV=pypy-29-40
-    - TOXENV=pypy-29-41
+    - TOXENV=docs
+matrix:
+  include:
+    - python: '2.7'
+      env:
+        - TOXENV=py27-t35-c44
+    - python: '2.7'
+      env:
+        - TOXENV=py27-t35-c45
+    - python: '2.7'
+      env:
+        - TOXENV=py27-t36-c44
+    - python: '2.7'
+      env:
+        - TOXENV=py27-t36-c45
+    - python: '2.7'
+      env:
+        - TOXENV=py27-t37-c44
+    - python: '2.7'
+      env:
+        - TOXENV=py27-t37-c45
+    - python: '3.4'
+      env:
+        - TOXENV=py34-t35-c44
+    - python: '3.4'
+      env:
+        - TOXENV=py34-t35-c45
+    - python: '3.4'
+      env:
+        - TOXENV=py34-t36-c44
+    - python: '3.4'
+      env:
+        - TOXENV=py34-t36-c45
+    - python: '3.4'
+      env:
+        - TOXENV=py34-t37-c44
+    - python: '3.4'
+      env:
+        - TOXENV=py34-t37-c45
+    - python: '3.5'
+      env:
+        - TOXENV=py35-t35-c44
+    - python: '3.5'
+      env:
+        - TOXENV=py35-t35-c45
+    - python: '3.5'
+      env:
+        - TOXENV=py35-t36-c44
+    - python: '3.5'
+      env:
+        - TOXENV=py35-t36-c45
+    - python: '3.5'
+      env:
+        - TOXENV=py35-t37-c44
+    - python: '3.5'
+      env:
+        - TOXENV=py35-t37-c45
+    - python: '3.6'
+      env:
+        - TOXENV=py36-t35-c44
+    - python: '3.6'
+      env:
+        - TOXENV=py36-t35-c45
+    - python: '3.6'
+      env:
+        - TOXENV=py36-t36-c44
+    - python: '3.6'
+      env:
+        - TOXENV=py36-t36-c45
+    - python: '3.6'
+      env:
+        - TOXENV=py36-t37-c44
+    - python: '3.6'
+      env:
+        - TOXENV=py36-t37-c45
+    - python: '3.7'
+      env:
+        - TOXENV=py37-t35-c44
+      dist: xenial
+      sudo: required
+    - python: '3.7'
+      env:
+        - TOXENV=py37-t35-c45
+      dist: xenial
+      sudo: required
+    - python: '3.7'
+      env:
+        - TOXENV=py37-t36-c44
+      dist: xenial
+      sudo: required
+    - python: '3.7'
+      env:
+        - TOXENV=py37-t36-c45
+      dist: xenial
+      sudo: required
+    - python: '3.7'
+      env:
+        - TOXENV=py37-t37-c44
+      dist: xenial
+      sudo: required
+    - python: '3.7'
+      env:
+        - TOXENV=py37-t37-c45
+      dist: xenial
+      sudo: required
+    - python: 'pypy-5.4'
+      env:
+        - TOXENV=pypy-t35-c44
+    - python: 'pypy-5.4'
+      env:
+        - TOXENV=pypy-t35-c45
+    - python: 'pypy-5.4'
+      env:
+        - TOXENV=pypy-t36-c44
+    - python: 'pypy-5.4'
+      env:
+        - TOXENV=pypy-t36-c45
+    - python: 'pypy-5.4'
+      env:
+        - TOXENV=pypy-t37-c44
+    - python: 'pypy-5.4'
+      env:
+        - TOXENV=pypy-t37-c45
 before_install:
   - python --version
   - uname -a
@@ -77,11 +145,6 @@ script:
 after_failure:
   - more .tox/log/* | cat
   - more .tox/*/log/* | cat
-before_cache:
-  - rm -rf $HOME/.cache/pip/log
-cache:
-  directories:
-    - $HOME/.cache/pip
 notifications:
   email:
     on_success: never

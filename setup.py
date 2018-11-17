@@ -80,9 +80,10 @@ class GeneratePTH(Command):
                     'exec(%r)' % sh.read().replace('    ', ' ')
                 )
 
+
 setup(
     name='pytest-cov',
-    version='2.2.1',
+    version='2.6.0',
     license='MIT',
     description='Pytest plugin for measuring coverage.',
     long_description='%s\n%s' % (read('README.rst'), re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGELOG.rst'))),
@@ -97,30 +98,33 @@ setup(
     classifiers=[
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
         'Development Status :: 5 - Production/Stable',
+        'Framework :: Pytest',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
-        'Operating System :: Unix',
-        'Operating System :: POSIX',
         'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX',
+        'Operating System :: Unix',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
+        'Topic :: Software Development :: Testing',
         'Topic :: Utilities',
-        'Topic :: Software Development :: Testing'
     ],
     keywords=[
         'cover', 'coverage', 'pytest', 'py.test', 'distributed', 'parallel',
     ],
     install_requires=[
-        'pytest>=2.6.0',
-        'coverage>=3.7.1'
+        'pytest>=2.9',
+        'coverage>=4.4'
     ],
+    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*',
     extras_require={
     },
     entry_points={

@@ -14,32 +14,45 @@ from .compat import StringIO
 class CovController(object):
     """Base class for different plugin implementations."""
 
-    def __init__(self, cov_source, cov_report, cov_config, cov_append, config=None, nodeid=None):
+    def __init__(self, cov_source, cov_report, cov_config, cov_append, cov_branch, config=None, nodeid=None):
         """Get some common config used by multiple derived classes."""
         self.cov_source = cov_source
         self.cov_report = cov_report
         self.cov_config = cov_config
         self.cov_append = cov_append
+        self.cov_branch = cov_branch
         self.config = config
         self.nodeid = nodeid
 
         self.cov = None
+        self.combining_cov = None
+        self.data_file = None
         self.node_descs = set()
         self.failed_slaves = []
         self.topdir = os.getcwd()
 
+    def pause(self):
+        self.cov.stop()
+        self.unset_env()
+
+    def resume(self):
+        self.cov.start()
+        self.set_env()
+
     def set_env(self):
         """Put info about coverage into the env so that subprocesses can activate coverage."""
         if self.cov_source is None:
-            os.environ['COV_CORE_SOURCE'] = ''
+            os.environ['COV_CORE_SOURCE'] = os.pathsep
         else:
             os.environ['COV_CORE_SOURCE'] = os.pathsep.join(self.cov_source)
         config_file = os.path.abspath(self.cov_config)
         if os.path.exists(config_file):
             os.environ['COV_CORE_CONFIG'] = config_file
         else:
-            os.environ['COV_CORE_CONFIG'] = ''
-        os.environ['COV_CORE_DATAFILE'] = os.path.abspath('.coverage')
+            os.environ['COV_CORE_CONFIG'] = os.pathsep
+        os.environ['COV_CORE_DATAFILE'] = os.path.abspath(self.cov.config.data_file)
+        if self.cov_branch:
+            os.environ['COV_CORE_BRANCH'] = 'enabled'
 
     @staticmethod
     def unset_env():
@@ -47,6 +60,7 @@ class CovController(object):
         os.environ.pop('COV_CORE_SOURCE', None)
         os.environ.pop('COV_CORE_CONFIG', None)
         os.environ.pop('COV_CORE_DATAFILE', None)
+        os.environ.pop('COV_CORE_BRANCH', None)
 
     @staticmethod
     def get_node_desc(platform, version_info):
@@ -83,9 +97,16 @@ class CovController(object):
                 self.sep(stream, ' ', '%s' % node_desc)
 
         # Produce terminal report if wanted.
-        if 'term' in self.cov_report or 'term-missing' in self.cov_report:
-            show_missing = ('term-missing' in self.cov_report) or None
-            total = self.cov.report(show_missing=show_missing, ignore_errors=True, file=stream)
+        if any(x in self.cov_report for x in ['term', 'term-missing']):
+            options = {
+                'show_missing': ('term-missing' in self.cov_report) or None,
+                'ignore_errors': True,
+                'file': stream,
+            }
+            skip_covered = isinstance(self.cov_report, dict) and 'skip-covered' in self.cov_report.values()
+            if hasattr(coverage, 'version_info') and coverage.version_info[0] >= 4:
+                options.update({'skip_covered': skip_covered or None})
+            total = self.cov.report(**options)
 
         # Produce annotated source code report if wanted.
         if 'annotate' in self.cov_report:
@@ -125,9 +146,13 @@ class Central(CovController):
 
     def start(self):
         """Erase any previous coverage data and start coverage."""
-
-        self.cov = coverage.coverage(source=self.cov_source,
+        self.cov = coverage.Coverage(source=self.cov_source,
+                                     branch=self.cov_branch,
                                      config_file=self.cov_config)
+        self.combining_cov = coverage.Coverage(source=self.cov_source,
+                                               branch=self.cov_branch,
+                                               data_file=os.path.abspath(self.cov.config.data_file),
+                                               config_file=self.cov_config)
         if self.cov_append:
             self.cov.load()
         else:
@@ -140,8 +165,13 @@ class Central(CovController):
 
         self.unset_env()
         self.cov.stop()
+        self.cov.save()
+
+        self.cov = self.combining_cov
+        self.cov.load()
         self.cov.combine()
         self.cov.save()
+
         node_desc = self.get_node_desc(sys.platform, sys.version_info)
         self.node_descs.add(node_desc)
 
@@ -155,8 +185,13 @@ class DistMaster(CovController):
         if self.cov_config and os.path.exists(self.cov_config):
             self.config.option.rsyncdir.append(self.cov_config)
 
-        self.cov = coverage.coverage(source=self.cov_source,
+        self.cov = coverage.Coverage(source=self.cov_source,
+                                     branch=self.cov_branch,
                                      config_file=self.cov_config)
+        self.combining_cov = coverage.Coverage(source=self.cov_source,
+                                               branch=self.cov_branch,
+                                               data_file=os.path.abspath(self.cov.config.data_file),
+                                               config_file=self.cov_config)
         if self.cov_append:
             self.cov.load()
         else:
@@ -189,16 +224,14 @@ class DistMaster(CovController):
                 node.slaveoutput['cov_slave_node_id']
                 )
 
-            cov = coverage.coverage(source=self.cov_source,
+            cov = coverage.Coverage(source=self.cov_source,
+                                    branch=self.cov_branch,
                                     data_suffix=data_suffix,
                                     config_file=self.cov_config)
             cov.start()
-            if hasattr(self.cov.data, 'read_fileobj'):  # for coverage 4.0
-                data = CoverageData()
-                data.read_fileobj(StringIO(node.slaveoutput['cov_slave_data']))
-                cov.data.update(data)
-            else:
-                cov.data.lines, cov.data.arcs = node.slaveoutput['cov_slave_data']
+            data = CoverageData()
+            data.read_fileobj(StringIO(node.slaveoutput['cov_slave_data']))
+            cov.data.update(data)
             cov.stop()
             cov.save()
             path = node.slaveoutput['cov_slave_path']
@@ -214,6 +247,9 @@ class DistMaster(CovController):
 
         # Combine all the suffix files into the data file.
         self.cov.stop()
+        self.cov.save()
+        self.cov = self.combining_cov
+        self.cov.load()
         self.cov.combine()
         self.cov.save()
 
@@ -232,12 +268,14 @@ class DistSlave(CovController):
         if not self.is_collocated:
             master_topdir = self.config.slaveinput['cov_master_topdir']
             slave_topdir = self.topdir
-            self.cov_source = [source.replace(master_topdir, slave_topdir)
-                               for source in self.cov_source]
+            if self.cov_source is not None:
+                self.cov_source = [source.replace(master_topdir, slave_topdir)
+                                   for source in self.cov_source]
             self.cov_config = self.cov_config.replace(master_topdir, slave_topdir)
 
         # Erase any previous data and start coverage.
-        self.cov = coverage.coverage(source=self.cov_source,
+        self.cov = coverage.Coverage(source=self.cov_source,
+                                     branch=self.cov_branch,
                                      data_suffix=True,
                                      config_file=self.cov_config)
         if self.cov_append:
@@ -271,12 +309,9 @@ class DistSlave(CovController):
             # Send all the data to the master over the channel.
             self.config.slaveoutput['cov_slave_path'] = self.topdir
             self.config.slaveoutput['cov_slave_node_id'] = self.nodeid
-            if hasattr(self.cov.data, 'write_fileobj'):  # for coverage 4.0
-                buff = StringIO()
-                self.cov.data.write_fileobj(buff)
-                self.config.slaveoutput['cov_slave_data'] = buff.getvalue()
-            else:
-                self.config.slaveoutput['cov_slave_data'] = self.cov.data.lines, self.cov.data.arcs
+            buff = StringIO()
+            self.cov.data.write_fileobj(buff)
+            self.config.slaveoutput['cov_slave_data'] = buff.getvalue()
 
     def summary(self, stream):
         """Only the master reports so do nothing."""

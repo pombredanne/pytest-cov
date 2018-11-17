@@ -12,7 +12,8 @@ Overview
     * - tests
       - | |travis| |appveyor| |requires|
     * - package
-      - |version| |downloads| |wheel| |supported-versions| |supported-implementations|
+      - | |version| |conda-forge| |wheel| |supported-versions| |supported-implementations|
+        | |commits-since|
 
 .. |docs| image:: https://readthedocs.org/projects/pytest-cov/badge/?style=flat
     :target: https://readthedocs.org/projects/pytest-cov
@@ -30,33 +31,39 @@ Overview
     :alt: Requirements Status
     :target: https://requires.io/github/pytest-dev/pytest-cov/requirements/?branch=master
 
-.. |version| image:: https://img.shields.io/pypi/v/pytest-cov.svg?style=flat
+.. |version| image:: https://img.shields.io/pypi/v/pytest-cov.svg
     :alt: PyPI Package latest release
     :target: https://pypi.python.org/pypi/pytest-cov
 
-.. |downloads| image:: https://img.shields.io/pypi/dm/pytest-cov.svg?style=flat
-    :alt: PyPI Package monthly downloads
-    :target: https://pypi.python.org/pypi/pytest-cov
+.. |conda-forge| image:: https://img.shields.io/conda/vn/conda-forge/pytest-cov.svg
+    :target: https://anaconda.org/conda-forge/pytest-cov
 
-.. |wheel| image:: https://img.shields.io/pypi/wheel/pytest-cov.svg?style=flat
+.. |commits-since| image:: https://img.shields.io/github/commits-since/pytest-dev/pytest-cov/v2.6.0.svg
+    :alt: Commits since latest release
+    :target: https://github.com/pytest-dev/pytest-cov/compare/v2.6.0...master
+
+.. |wheel| image:: https://img.shields.io/pypi/wheel/pytest-cov.svg
     :alt: PyPI Wheel
     :target: https://pypi.python.org/pypi/pytest-cov
 
-.. |supported-versions| image:: https://img.shields.io/pypi/pyversions/pytest-cov.svg?style=flat
+.. |supported-versions| image:: https://img.shields.io/pypi/pyversions/pytest-cov.svg
     :alt: Supported versions
     :target: https://pypi.python.org/pypi/pytest-cov
 
-.. |supported-implementations| image:: https://img.shields.io/pypi/implementation/pytest-cov.svg?style=flat
+.. |supported-implementations| image:: https://img.shields.io/pypi/implementation/pytest-cov.svg
     :alt: Supported implementations
     :target: https://pypi.python.org/pypi/pytest-cov
 
-
 .. end-badges
 
-This plugin produces coverage reports.  It supports centralised testing and distributed testing in
-both load and each modes.  It also supports coverage of subprocesses.
+This plugin produces coverage reports. Compared to just using ``coverage run`` this plugin does some extras:
 
-All features offered by the coverage package should be available, either through pytest-cov or
+* Subprocess support: you can fork or run stuff in a subprocess and will get covered without any fuss.
+* Xdist support: you can use all of pytest-xdist's features and still get coverage.
+* Consistent pytest behavior. If you run ``coverage run -m pytest`` you will have slightly different ``sys.path`` (CWD will be
+  in it, unlike when running ``pytest``).
+
+All features offered by the coverage package should work, either through pytest-cov's command line options or
 through coverage's config file.
 
 * Free software: MIT license
@@ -72,14 +79,14 @@ For distributed testing support install pytest-xdist::
 
     pip install pytest-xdist
 
-Upgrade
-=======
+Upgrading from ancient pytest-cov
+---------------------------------
 
 `pytest-cov 2.0` is using a new ``.pth`` file (``pytest-cov.pth``). You may want to manually remove the older
 ``init_cov_core.pth`` from site-packages as it's not automatically removed.
 
-Uninstallation
-==============
+Uninstalling
+------------
 
 Uninstall with pip::
 
@@ -94,19 +101,13 @@ Under certain scenarios a stray ``.pth`` file may be left around in site-package
 Usage
 =====
 
-Centralised Testing
--------------------
-
-Centralised testing will report on the combined coverage of the main process and all of its
-subprocesses.
-
-Running centralised testing::
+::
 
     py.test --cov=myproj tests/
 
-Shows a terminal report::
+Would produce a report like::
 
-    -------------------- coverage: platform linux2, python 2.6.4-final-0 ---------------------
+    -------------------- coverage: ... ---------------------
     Name                 Stmts   Miss  Cover
     ----------------------------------------
     myproj/__init__          2      0   100%
@@ -115,138 +116,15 @@ Shows a terminal report::
     ----------------------------------------
     TOTAL                  353     20    94%
 
+Documentation
+=============
 
-Distributed Testing: Load
--------------------------
-
-Distributed testing with dist mode set to load will report on the combined coverage of all slaves.
-The slaves may be spread out over any number of hosts and each slave may be located anywhere on the
-file system.  Each slave will have its subprocesses measured.
-
-Running distributed testing with dist mode set to load::
-
-    py.test --cov=myproj -n 2 tests/
-
-Shows a terminal report::
-
-    -------------------- coverage: platform linux2, python 2.6.4-final-0 ---------------------
-    Name                 Stmts   Miss  Cover
-    ----------------------------------------
-    myproj/__init__          2      0   100%
-    myproj/myproj          257     13    94%
-    myproj/feature4286      94      7    92%
-    ----------------------------------------
-    TOTAL                  353     20    94%
+    http://pytest-cov.rtfd.org/
 
 
-Again but spread over different hosts and different directories::
-
-    py.test --cov=myproj --dist load
-            --tx ssh=memedough@host1//chdir=testenv1
-            --tx ssh=memedough@host2//chdir=/tmp/testenv2//python=/tmp/env1/bin/python
-            --rsyncdir myproj --rsyncdir tests --rsync examples
-            tests/
-
-Shows a terminal report::
-
-    -------------------- coverage: platform linux2, python 2.6.4-final-0 ---------------------
-    Name                 Stmts   Miss  Cover
-    ----------------------------------------
-    myproj/__init__          2      0   100%
-    myproj/myproj          257     13    94%
-    myproj/feature4286      94      7    92%
-    ----------------------------------------
-    TOTAL                  353     20    94%
 
 
-Distributed Testing: Each
--------------------------
 
-Distributed testing with dist mode set to each will report on the combined coverage of all slaves.
-Since each slave is running all tests this allows generating a combined coverage report for multiple
-environments.
-
-Running distributed testing with dist mode set to each::
-
-    py.test --cov=myproj --dist each
-            --tx popen//chdir=/tmp/testenv3//python=/usr/local/python27/bin/python
-            --tx ssh=memedough@host2//chdir=/tmp/testenv4//python=/tmp/env2/bin/python
-            --rsyncdir myproj --rsyncdir tests --rsync examples
-            tests/
-
-Shows a terminal report::
-
-    ---------------------------------------- coverage ----------------------------------------
-                              platform linux2, python 2.6.5-final-0
-                              platform linux2, python 2.7.0-final-0
-    Name                 Stmts   Miss  Cover
-    ----------------------------------------
-    myproj/__init__          2      0   100%
-    myproj/myproj          257     13    94%
-    myproj/feature4286      94      7    92%
-    ----------------------------------------
-    TOTAL                  353     20    94%
-
-
-Reporting
-=========
-
-It is possible to generate any combination of the reports for a single test run.
-
-The available reports are terminal (with or without missing line numbers shown), HTML, XML and
-annotated source code.
-
-The terminal report without line numbers (default)::
-
-    py.test --cov-report term --cov=myproj tests/
-
-    -------------------- coverage: platform linux2, python 2.6.4-final-0 ---------------------
-    Name                 Stmts   Miss  Cover
-    ----------------------------------------
-    myproj/__init__          2      0   100%
-    myproj/myproj          257     13    94%
-    myproj/feature4286      94      7    92%
-    ----------------------------------------
-    TOTAL                  353     20    94%
-
-
-The terminal report with line numbers::
-
-    py.test --cov-report term-missing --cov=myproj tests/
-
-    -------------------- coverage: platform linux2, python 2.6.4-final-0 ---------------------
-    Name                 Stmts   Miss  Cover   Missing
-    --------------------------------------------------
-    myproj/__init__          2      0   100%
-    myproj/myproj          257     13    94%   24-26, 99, 149, 233-236, 297-298, 369-370
-    myproj/feature4286      94      7    92%   183-188, 197
-    --------------------------------------------------
-    TOTAL                  353     20    94%
-
-
-These three report options output to files without showing anything on the terminal::
-
-    py.test --cov-report html
-            --cov-report xml
-            --cov-report annotate
-            --cov=myproj tests/
-
-The output location for each of these reports can be specified. The output location for the XML
-report is a file. Where as the output location for the HTML and annotated source code reports are
-directories::
-
-    py.test --cov-report html:cov_html
-            --cov-report xml:cov.xml
-            --cov-report annotate:cov_annotate
-            --cov=myproj tests/
-
-The final report option can also suppress printing to the terminal::
-
-    py.test --cov-report= --cov=myproj tests/
-
-This mode can be especially useful on continuous integration servers, where a coverage file
-is needed for subsequent processing, but no local report needs to be viewed. For example,
-tests run on Travis-CI could produce a .coverage file for use with Coveralls.
 
 Coverage Data File
 ==================
@@ -257,33 +135,6 @@ this coverage data to coverage data from previous test runs.
 
 The data file is left at the end of testing so that it is possible to use normal coverage tools to
 examine it.
-
-
-Coverage Config File
-====================
-
-This plugin provides a clean minimal set of command line options that are added to pytest.  For
-further control of coverage use a coverage config file.
-
-For example if tests are contained within the directory tree being measured the tests may be
-excluded if desired by using a .coveragerc file with the omit option set::
-
-    py.test --cov-config .coveragerc
-            --cov=myproj
-            myproj/tests/
-
-Where the .coveragerc file contains file globs::
-
-    [run]
-    omit = tests/*
-
-For full details refer to the `coverage config file`_ documentation.
-
-.. _`coverage config file`: http://nedbatchelder.com/code/coverage/config.html
-
-Note that this plugin controls some options and setting the option in the config file will have no
-effect.  These include specifying source to be measured (source option) and all data file handling
-(data_file and parallel options).
 
 Limitations
 ===========
@@ -296,6 +147,7 @@ For subprocess measurement environment variables must make it from the main proc
 subprocess.  The python used by the subprocess must have pytest-cov installed.  The subprocess must
 do normal site initialisation so that the environment variables can be detected and coverage
 started.
+
 
 Acknowledgements
 ================
